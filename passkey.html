@@ -12,12 +12,13 @@
             height: 100vh;
             margin: 0;
             font-family: sans-serif;
-            background: transparent
+            background: #fff
         }
 
         #s {
             color: #888;
-            font-size: 14px
+            font-size: 14px;
+            text-align: center
         }
     </style>
 </head>
@@ -37,29 +38,53 @@
             for (var i = 0; i < a.length; i++)s += String.fromCharCode(a[i]);
             return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         }
-        window.startLogin = async function (j) {
+        function redirect(action, type, payload) {
+            var uri = 'octopasskey://callback?action=' + encodeURIComponent(action) + '&' + type + '=' + encodeURIComponent(payload);
+            window.location.href = uri;
+        }
+        async function doLogin(optionsJson) {
             try {
                 document.getElementById('s').textContent = 'Authenticating...';
-                var o = JSON.parse(j);
+                var o = JSON.parse(optionsJson);
                 o.challenge = b64u2buf(o.challenge);
                 if (o.allowCredentials) o.allowCredentials = o.allowCredentials.map(function (c) { return { type: c.type, id: b64u2buf(c.id) } });
                 var c = await navigator.credentials.get({ publicKey: o });
                 var r = { id: c.id, rawId: buf2b64u(c.rawId), response: { clientDataJSON: buf2b64u(c.response.clientDataJSON), authenticatorData: buf2b64u(c.response.authenticatorData), signature: buf2b64u(c.response.signature), userHandle: c.response.userHandle ? buf2b64u(c.response.userHandle) : '' }, type: c.type };
-                Android.onResult(JSON.stringify(r));
-            } catch (e) { Android.onError(e.name + ': ' + e.message) }
-        };
-        window.startRegistration = async function (j) {
+                redirect('login', 'data', JSON.stringify(r));
+            } catch (e) { redirect('login', 'error', e.name + ': ' + e.message) }
+        }
+        async function doRegistration(optionsJson) {
             try {
                 document.getElementById('s').textContent = 'Registering...';
-                var o = JSON.parse(j);
+                var o = JSON.parse(optionsJson);
                 o.challenge = b64u2buf(o.challenge);
                 if (o.user && o.user.id) o.user.id = b64u2buf(o.user.id);
                 if (o.excludeCredentials) o.excludeCredentials = o.excludeCredentials.map(function (c) { return { type: c.type, id: b64u2buf(c.id) } });
                 var c = await navigator.credentials.create({ publicKey: o });
                 var r = { id: c.id, rawId: buf2b64u(c.rawId), response: { clientDataJSON: buf2b64u(c.response.clientDataJSON), attestationObject: buf2b64u(c.response.attestationObject) }, type: c.type };
-                Android.onResult(JSON.stringify(r));
-            } catch (e) { Android.onError(e.name + ': ' + e.message) }
-        };
+                redirect('register', 'data', JSON.stringify(r));
+            } catch (e) { redirect('register', 'error', e.name + ': ' + e.message) }
+        }
+        window.startLogin = function (j) { doLogin(j) };
+        window.startRegistration = function (j) { doRegistration(j) };
+        (function () {
+            var hash = window.location.hash;
+            if (!hash || hash.length < 2) return;
+            var params = {};
+            hash.substring(1).split('&').forEach(function (p) {
+                var kv = p.split('=');
+                if (kv.length === 2) params[kv[0]] = decodeURIComponent(kv[1]);
+            });
+            var action = params['action'];
+            var options = params['options'];
+            if (!action || !options) return;
+            try {
+                var optionsJson = atob(options.replace(/-/g, '+').replace(/_/g, '/'));
+            } catch (e) { redirect(action, 'error', 'Failed to decode options: ' + e.message); return }
+            if (action === 'login') doLogin(optionsJson);
+            else if (action === 'register') doRegistration(optionsJson);
+            else redirect(action, 'error', 'Unknown action: ' + action);
+        })();
     </script>
 </body>
 
