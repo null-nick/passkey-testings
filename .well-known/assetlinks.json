@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "it.octogram.android",
+      "sha256_cert_fingerprints": [
+        "9B:D2:5F:08:E0:31:A7:C8:78:F4:68:33:67:95:19:1A:DB:23:AD:80:44:C1:AC:E4:C7:CF:0F:34:CD:F8:D4:CD"
+      ]
+    }
+  }
+]
