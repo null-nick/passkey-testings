@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: sans-serif;
+            background: transparent
+        }
+
+        #s {
+            color: #888;
+            font-size: 14px
+        }
+    </style>
+</head>
+
+<body>
+    <p id="s">Waiting...</p>
+    <script>
+        function b64u2buf(s) {
+            s = s.replace(/-/g, '+').replace(/_/g, '/');
+            while (s.length % 4) s += '=';
+            var b = atob(s), a = new Uint8Array(b.length);
+            for (var i = 0; i < b.length; i++)a[i] = b.charCodeAt(i);
+            return a.buffer;
+        }
+        function buf2b64u(b) {
+            var a = new Uint8Array(b), s = '';
+            for (var i = 0; i < a.length; i++)s += String.fromCharCode(a[i]);
+            return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+        window.startLogin = async function (j) {
+            try {
+                document.getElementById('s').textContent = 'Authenticating...';
+                var o = JSON.parse(j);
+                o.challenge = b64u2buf(o.challenge);
+                if (o.allowCredentials) o.allowCredentials = o.allowCredentials.map(function (c) { return { type: c.type, id: b64u2buf(c.id) } });
+                var c = await navigator.credentials.get({ publicKey: o });
+                var r = { id: c.id, rawId: buf2b64u(c.rawId), response: { clientDataJSON: buf2b64u(c.response.clientDataJSON), authenticatorData: buf2b64u(c.response.authenticatorData), signature: buf2b64u(c.response.signature), userHandle: c.response.userHandle ? buf2b64u(c.response.userHandle) : '' }, type: c.type };
+                Android.onResult(JSON.stringify(r));
+            } catch (e) { Android.onError(e.name + ': ' + e.message) }
+        };
+        window.startRegistration = async function (j) {
+            try {
+                document.getElementById('s').textContent = 'Registering...';
+                var o = JSON.parse(j);
+                o.challenge = b64u2buf(o.challenge);
+                if (o.user && o.user.id) o.user.id = b64u2buf(o.user.id);
+                if (o.excludeCredentials) o.excludeCredentials = o.excludeCredentials.map(function (c) { return { type: c.type, id: b64u2buf(c.id) } });
+                var c = await navigator.credentials.create({ publicKey: o });
+                var r = { id: c.id, rawId: buf2b64u(c.rawId), response: { clientDataJSON: buf2b64u(c.response.clientDataJSON), attestationObject: buf2b64u(c.response.attestationObject) }, type: c.type };
+                Android.onResult(JSON.stringify(r));
+            } catch (e) { Android.onError(e.name + ': ' + e.message) }
+        };
+    </script>
+</body>
+
+</html>
